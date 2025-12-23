@@ -20,6 +20,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     switch (user?.role) {
       case 'user':
         return [
+          { icon: Home, label: 'Home', value: 'home' },
           { icon: ShoppingBag, label: 'Products', value: 'products' },
           { icon: Scissors, label: 'Services', value: 'services' },
           { icon: Stethoscope, label: 'Doctor', value: 'doctor' },
