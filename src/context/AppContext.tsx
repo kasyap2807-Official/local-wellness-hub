@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, UserRole, Location, Order, Booking, Appointment, CartItem, Product } from '@/types';
+import { 
+  User, UserRole, Location, Order, Booking, Appointment, CartItem, Product,
+  Wallet, WalletHistory, DietPreference, DietCompletion, FaceScoreEntry, CollectBoxClaim
+} from '@/types';
+import { format } from 'date-fns';
 
 interface AppContextType {
   // Auth
@@ -41,6 +45,30 @@ interface AppContextType {
   addAppointment: (appointment: Appointment) => void;
   updateAppointmentStatus: (appointmentId: string, status: Appointment['status']) => void;
   addPrescription: (appointmentId: string, prescription: Appointment['prescription']) => void;
+
+  // Wallet
+  wallet: Wallet | null;
+  walletHistory: WalletHistory[];
+  addCoins: (coins: number, actionType: string) => void;
+
+  // Diet Plan
+  dietPreference: DietPreference | null;
+  setDietPreference: (preference: DietPreference) => void;
+  dietCompletions: DietCompletion[];
+  completeDietForToday: () => void;
+  isDietCompletedToday: () => boolean;
+
+  // Face Score
+  faceScoreHistory: FaceScoreEntry[];
+  addFaceScore: (score: number, coinsEarned: number) => void;
+
+  // Collect Box
+  collectBoxClaims: CollectBoxClaim[];
+  hasClaimedCollectBoxToday: () => boolean;
+  claimCollectBox: (coins: number) => void;
+
+  // Daily Login
+  checkDailyLogin: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -75,6 +103,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Wallet state
+  const [wallet, setWallet] = useState<Wallet | null>(() => {
+    const saved = localStorage.getItem('glowup_wallet');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [walletHistory, setWalletHistory] = useState<WalletHistory[]>(() => {
+    const saved = localStorage.getItem('glowup_wallet_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Diet state
+  const [dietPreference, setDietPreferenceState] = useState<DietPreference | null>(() => {
+    const saved = localStorage.getItem('glowup_diet_preference');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [dietCompletions, setDietCompletions] = useState<DietCompletion[]>(() => {
+    const saved = localStorage.getItem('glowup_diet_completions');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Face Score state
+  const [faceScoreHistory, setFaceScoreHistory] = useState<FaceScoreEntry[]>(() => {
+    const saved = localStorage.getItem('glowup_face_scores');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Collect Box state
+  const [collectBoxClaims, setCollectBoxClaims] = useState<CollectBoxClaim[]>(() => {
+    const saved = localStorage.getItem('glowup_collect_claims');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [lastLoginDate, setLastLoginDate] = useState<string | null>(() => {
+    return localStorage.getItem('glowup_last_login');
+  });
+
   // Persist to localStorage
   useEffect(() => {
     if (user) {
@@ -99,6 +165,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('glowup_appointments', JSON.stringify(appointments));
   }, [appointments]);
+
+  useEffect(() => {
+    if (wallet) {
+      localStorage.setItem('glowup_wallet', JSON.stringify(wallet));
+    }
+  }, [wallet]);
+
+  useEffect(() => {
+    localStorage.setItem('glowup_wallet_history', JSON.stringify(walletHistory));
+  }, [walletHistory]);
+
+  useEffect(() => {
+    if (dietPreference) {
+      localStorage.setItem('glowup_diet_preference', JSON.stringify(dietPreference));
+    }
+  }, [dietPreference]);
+
+  useEffect(() => {
+    localStorage.setItem('glowup_diet_completions', JSON.stringify(dietCompletions));
+  }, [dietCompletions]);
+
+  useEffect(() => {
+    localStorage.setItem('glowup_face_scores', JSON.stringify(faceScoreHistory));
+  }, [faceScoreHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('glowup_collect_claims', JSON.stringify(collectBoxClaims));
+  }, [collectBoxClaims]);
+
+  // Initialize wallet when user logs in
+  useEffect(() => {
+    if (user && !wallet) {
+      setWallet({
+        id: `wallet_${user.id}`,
+        userId: user.id,
+        totalCoins: 0
+      });
+    }
+  }, [user, wallet]);
 
   const fetchLocation = async () => {
     setLocationLoading(true);
@@ -160,6 +265,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     if (foundUser) {
       setUser(foundUser);
+      
+      // Load user-specific wallet
+      const savedWallet = localStorage.getItem(`glowup_wallet_${foundUser.id}`);
+      if (savedWallet) {
+        setWallet(JSON.parse(savedWallet));
+      } else {
+        setWallet({
+          id: `wallet_${foundUser.id}`,
+          userId: foundUser.id,
+          totalCoins: 0
+        });
+      }
+      
       return true;
     }
     return false;
@@ -185,12 +303,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     users.push(newUser);
     localStorage.setItem('glowup_users', JSON.stringify(users));
     setUser(newUser);
+    
+    // Initialize wallet for new user
+    const newWallet: Wallet = {
+      id: `wallet_${newUser.id}`,
+      userId: newUser.id,
+      totalCoins: 0
+    };
+    setWallet(newWallet);
+    
     return true;
   };
 
   const logout = () => {
+    // Save wallet before logout
+    if (wallet && user) {
+      localStorage.setItem(`glowup_wallet_${user.id}`, JSON.stringify(wallet));
+    }
+    
     setUser(null);
     setCart([]);
+    setWallet(null);
+    setWalletHistory([]);
+    setDietPreferenceState(null);
+    setDietCompletions([]);
+    setFaceScoreHistory([]);
+    setCollectBoxClaims([]);
+    
+    // Clear local storage for session data
+    localStorage.removeItem('glowup_wallet');
+    localStorage.removeItem('glowup_wallet_history');
+    localStorage.removeItem('glowup_diet_preference');
+    localStorage.removeItem('glowup_diet_completions');
+    localStorage.removeItem('glowup_face_scores');
+    localStorage.removeItem('glowup_collect_claims');
+    localStorage.removeItem('glowup_last_login');
   };
 
   const setUserRole = (role: UserRole) => {
@@ -315,6 +462,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // Wallet functions
+  const addCoins = (coins: number, actionType: string) => {
+    if (wallet) {
+      setWallet(prev => prev ? { ...prev, totalCoins: prev.totalCoins + coins } : null);
+      
+      const historyEntry: WalletHistory = {
+        id: `wh_${Date.now()}`,
+        actionType,
+        coinsEarned: coins,
+        dateTime: new Date().toISOString()
+      };
+      setWalletHistory(prev => [historyEntry, ...prev]);
+    }
+  };
+
+  // Diet functions
+  const setDietPreference = (preference: DietPreference) => {
+    setDietPreferenceState(preference);
+  };
+
+  const completeDietForToday = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    setDietCompletions(prev => [...prev, { date: today, completed: true }]);
+  };
+
+  const isDietCompletedToday = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return dietCompletions.some(c => c.date === today && c.completed);
+  };
+
+  // Face Score functions
+  const addFaceScore = (score: number, coinsEarned: number) => {
+    const entry: FaceScoreEntry = {
+      id: `fs_${Date.now()}`,
+      date: new Date().toISOString(),
+      score,
+      coinsEarned
+    };
+    setFaceScoreHistory(prev => [entry, ...prev]);
+  };
+
+  // Collect Box functions
+  const hasClaimedCollectBoxToday = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return collectBoxClaims.some(c => c.date === today);
+  };
+
+  const claimCollectBox = (coins: number) => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    setCollectBoxClaims(prev => [...prev, { date: today, coins }]);
+  };
+
+  // Daily Login check
+  const checkDailyLogin = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    if (lastLoginDate !== today && user) {
+      setLastLoginDate(today);
+      localStorage.setItem('glowup_last_login', today);
+      addCoins(5, 'Daily Login');
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -345,7 +554,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         appointments,
         addAppointment,
         updateAppointmentStatus,
-        addPrescription
+        addPrescription,
+        wallet,
+        walletHistory,
+        addCoins,
+        dietPreference,
+        setDietPreference,
+        dietCompletions,
+        completeDietForToday,
+        isDietCompletedToday,
+        faceScoreHistory,
+        addFaceScore,
+        collectBoxClaims,
+        hasClaimedCollectBoxToday,
+        claimCollectBox,
+        checkDailyLogin
       }}
     >
       {children}

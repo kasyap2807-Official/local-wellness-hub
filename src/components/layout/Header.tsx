@@ -15,16 +15,26 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { WalletDisplay } from '@/components/wallet/WalletDisplay';
+import { WalletModal } from '@/components/wallet/WalletModal';
 
 export function Header() {
-  const { location, locationLoading, locationError, fetchLocation, user, logout } = useApp();
+  const { location, locationLoading, locationError, fetchLocation, user, logout, checkDailyLogin } = useApp();
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   useEffect(() => {
     if (!location && !locationLoading) {
       fetchLocation();
     }
   }, []);
+
+  // Check daily login for coins
+  useEffect(() => {
+    if (user) {
+      checkDailyLogin();
+    }
+  }, [user]);
 
   const getLocationDisplay = () => {
     if (locationLoading) return 'Getting location...';
@@ -45,6 +55,32 @@ export function Header() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
+          {/* Avatar */}
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="shrink-0 mr-2">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.profile?.photo} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span>{user.name}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-destructive">
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           {/* Location Section */}
           <button
             onClick={() => setShowLocationModal(true)}
@@ -66,31 +102,8 @@ export function Header() {
             </div>
           </button>
 
-          {/* User Menu */}
-          {user && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={user.profile?.photo} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {user.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  <span>{user.name}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-destructive">
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {/* Wallet Display */}
+          {user && <WalletDisplay onClick={() => setShowWalletModal(true)} />}
         </div>
       </header>
 
@@ -153,6 +166,9 @@ export function Header() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Wallet Modal */}
+      <WalletModal open={showWalletModal} onOpenChange={setShowWalletModal} />
     </>
   );
 }

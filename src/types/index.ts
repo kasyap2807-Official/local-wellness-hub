@@ -157,3 +157,45 @@ export interface CartItem {
   product: Product;
   quantity: number;
 }
+
+// Wallet System
+export interface Wallet {
+  id: string;
+  userId: string;
+  totalCoins: number;
+}
+
+export interface WalletHistory {
+  id: string;
+  actionType: string;
+  coinsEarned: number;
+  dateTime: string;
+}
+
+// Diet Plan System
+export interface DietPreference {
+  goal: string;
+  foodPreference: string;
+  allergies: string;
+  wakeUpTime: string;
+  sleepHours: string;
+}
+
+export interface DietCompletion {
+  date: string;
+  completed: boolean;
+}
+
+// Face Score History
+export interface FaceScoreEntry {
+  id: string;
+  date: string;
+  score: number;
+  coinsEarned: number;
+}
+
+// Collect Box
+export interface CollectBoxClaim {
+  date: string;
+  coins: number;
+}
