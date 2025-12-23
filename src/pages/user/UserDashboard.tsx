@@ -4,16 +4,19 @@ import { ProductsTab } from './ProductsTab';
 import { ServicesTab } from './ServicesTab';
 import { DoctorTab } from './DoctorTab';
 import { ProfileTab } from './ProfileTab';
+import { HomeTab } from './HomeTab';
 
 interface UserDashboardProps {
   onLogout: () => void;
 }
 
 export function UserDashboard({ onLogout }: UserDashboardProps) {
-  const [activeTab, setActiveTab] = useState('products');
+  const [activeTab, setActiveTab] = useState('home');
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'home':
+        return <HomeTab />;
       case 'products':
         return <ProductsTab />;
       case 'services':
@@ -23,7 +26,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
       case 'profile':
         return <ProfileTab onLogout={onLogout} />;
       default:
-        return <ProductsTab />;
+        return <HomeTab />;
     }
   };
 
